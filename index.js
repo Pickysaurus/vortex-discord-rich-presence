@@ -3,14 +3,45 @@ const DiscordRPC = require('discord-rpc');
 const clientId = '594190466782724099';
 const RPC = new DiscordRPC.Client({transport: 'ipc' });
 const gameArt = require('./gameart.json');
+let rpcEnabled = true;
 
 function main(context) {
+
+    context.registerAction('global-icons', 100, 'show', {}, 'Discord Rich Presence: ON', () => {
+        rpcEnabled = !rpcEnabled;
+        RPC.clearActivity();
+        context.api.sendNotification(
+            {
+                type: 'info', 
+                message: 'Discord Rich Presence Disabled',
+                displayMS: 2000 
+            }
+        );
+    },
+    () => {return (rpcEnabled === true)});
+
+    context.registerAction('global-icons', 100, 'hide', {}, 'Discord Rich Presence: OFF', () => {
+        rpcEnabled = !rpcEnabled;
+        const state = context.api.store.getState();
+        const activeGameId = selectors.activeGameId(state);
+        setRPCGame(state, activeGameId);
+        context.api.sendNotification(
+            {
+                type: 'info', 
+                message: 'Discord Rich Presence Enabled',
+                displayMS: 2000 
+            }
+        );
+    },
+    () => {return (rpcEnabled === false)});
+
     context.once(() => {
         // When we change game, update the RPC
         context.api.events.on('gamemode-activated', (newMode) => setRPCGame(context.api.store.getState(), newMode));
 
         // When we deploy our mods, update the RPC
         context.api.events.on('did-deploy', () => {
+            if (!rpcEnabled) return;
             const state = context.api.store.getState();
             const activeGameId = selectors.activeGameId(state);
             setRPCGame(state, activeGameId);
@@ -18,6 +49,7 @@ function main(context) {
 
         // When we change profile, update the RPC
         context.api.onStateChange(['settings', 'profiles', 'activeProfileId'], (previous, current) => {
+            if (!rpcEnabled) return;
             // If we go to no profile at all, clear the RPC.
             if (!current) return RPC.clearActivity();
 
@@ -30,6 +62,7 @@ function main(context) {
 
         // When we launch/close a game clear/update RPC.
         context.api.onStateChange(['session', 'base', 'toolsRunning'], (previous, current) => {
+            if (!rpcEnabled) return;
             if ((Object.keys(previous).length > 0) && (Object.keys(current).length === 0)) {
                 // We've just closed a game
                 const state = context.api.store.getState();
