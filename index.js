@@ -4,12 +4,13 @@ const clientId = '594190466782724099';
 const RPC = new DiscordRPC.Client({transport: 'ipc' });
 const gameArt = require('./gameart.json');
 let rpcEnabled = true;
+let connected = false;
 
 function main(context) {
 
     context.registerAction('global-icons', 100, 'show', {}, 'Discord Rich Presence: ON', () => {
         rpcEnabled = !rpcEnabled;
-        RPC.clearActivity();
+        RPC.clearActivity().catch(err => { return alertError(err, context.api) });
         context.api.sendNotification(
             {
                 type: 'info', 
@@ -24,27 +25,29 @@ function main(context) {
         rpcEnabled = !rpcEnabled;
         const state = context.api.store.getState();
         const activeGameId = selectors.activeGameId(state);
-        setRPCGame(state, activeGameId);
-        context.api.sendNotification(
-            {
-                type: 'info', 
-                message: 'Discord Rich Presence Enabled',
-                displayMS: 2000 
-            }
-        );
+        setRPCGame(state, activeGameId).then(() => {
+            context.api.sendNotification(
+                {
+                    type: 'info', 
+                    message: 'Discord Rich Presence Enabled',
+                    displayMS: 2000 
+                }
+            );
+        })
+        .catch(err => { return alertError(err, context.api) });
     },
     () => {return (rpcEnabled === false)});
 
     context.once(() => {
         // When we change game, update the RPC
-        context.api.events.on('gamemode-activated', (newMode) => setRPCGame(context.api.store.getState(), newMode));
+        context.api.events.on('gamemode-activated', (newMode) => rpcEnabled ? setRPCGame(context.api.store.getState(), newMode).catch(() => log('debug', 'Discord RPC failed to set.')) : undefined);
 
         // When we deploy our mods, update the RPC
         context.api.events.on('did-deploy', () => {
             if (!rpcEnabled) return;
             const state = context.api.store.getState();
             const activeGameId = selectors.activeGameId(state);
-            setRPCGame(state, activeGameId);
+            setRPCGame(state, activeGameId).catch(err => { return alertError(err, context.api) });;
         });
 
         // When we change profile, update the RPC
@@ -56,7 +59,7 @@ function main(context) {
             // Update the RPC data.
             const state = context.api.store.getState();
             const currentProfile = selectors.profileById(state, current);
-            setRPCGame(state, currentProfile.gameId, currentProfile);
+            setRPCGame(state, currentProfile.gameId, currentProfile).catch(() => undefined);
 
         });
 
@@ -67,31 +70,47 @@ function main(context) {
                 // We've just closed a game
                 const state = context.api.store.getState();
                 const activeGameId = selectors.activeGameId(state);
-                setRPCGame(state, activeGameId);;
+                setRPCGame(state, activeGameId).catch(() => undefined);
             }
             else {
-                RPC.clearActivity();
+                try {
+                    RPC.clearActivity();
+                }
+                catch(err) {
+                    log('info', 'Error clearing Discord RPC status.', err);
+                }
+                
             };
         });
     });
 }
 
 function setRPCGame(state, newMode, currentProfile) {
-    if (!newMode || !state) return RPC.clearActivity();
+    return new Promise((resolve, reject) => {
+        if (!newMode || !state) {
+            RPC.clearActivity().then(()=> resolve())
+            .catch(err => reject(err));
+        }
 
-    const game = util.getGame(newMode);
-    const profile = currentProfile || selectors.activeProfile(state);
-    const mods = profile.modState ? Object.keys(profile.modState) : [];
-    const modArray = mods.map(m => profile.modState[m]);
-    const modCount = modArray.filter(m => m.enabled).length;
-    log('info', 'Updating Discord RPC for ', game.id, profile.id);
+        const game = util.getGame(newMode);
+        const profile = currentProfile || selectors.activeProfile(state);
+        const mods = profile.modState ? Object.keys(profile.modState) : [];
+        const modArray = mods.map(m => profile.modState[m]);
+        const modCount = modArray.filter(m => m.enabled).length;
+        log('info', 'Updating Discord RPC for ', game.id, profile.id);
 
-    const activity = getArtwork(game);
-    activity.details = game.name;
-    activity.state = modCount === 1 ? `${modCount} mod installed` : `${modCount} mods installed`;
-    // activity.startTimestamp = profile.lastActivated;
+        const activity = getArtwork(game);
+        activity.details = game.name;
+        activity.state = modCount === 1 ? `${modCount} mod installed` : `${modCount} mods installed`;
+        // activity.startTimestamp = profile.lastActivated;
 
-    RPC.setActivity(activity).catch(console.error);
+        RPC.setActivity(activity).then(() => resolve())
+        .catch(err => { 
+            log('info', 'Setting RPC activity failed.', err);
+            rpcEnabled = false;
+            reject(err);
+        });
+    });
 }
 
 function getArtwork(game) {
@@ -103,8 +122,29 @@ function getArtwork(game) {
     };
 }
 
+function alertError(error, api) {
+    // Something went wrong setting RPC status.
+    log('warn', 'Discord RPC error', error);
+    rpcEnabled = false;
+    api.sendNotification(
+        {
+            type: 'warning', 
+            title: 'Failed to set Discord Rich Presence',
+            message: 'Please ensure Discord is running and try again.',
+            displayMS: 2000 
+        }
+    );
+
+    if (!connected) {
+        // If the RPC didn't connect, try again. 
+        return RPC.login({ clientId }).then(() => connected = true).catch((err) => log('warn', 'Discord RPC failed to connect', err));
+    }
+
+    connected = false;
+}
+
 RPC.on('ready', () =>  log('info', `Discord RPC - ${RPC.user.username}#${RPC.user.discriminator} logged into client ${RPC.clientId} `));
 
-RPC.login({ clientId }).catch(console.error);
+RPC.login({ clientId }).then(() => connected = true).catch((err) => log('warn', 'Discord RPC failed to connect', err));
 
 module.exports = { default: main };
