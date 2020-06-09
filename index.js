@@ -54,7 +54,7 @@ function main(context) {
         context.api.onStateChange(['settings', 'profiles', 'activeProfileId'], (previous, current) => {
             if (!rpcEnabled) return;
             // If we go to no profile at all, clear the RPC.
-            if (!current) return RPC.clearActivity();
+            if (!current) return RPC.clearActivity().catch(err => { return alertError(err, context.api) });;
 
             // Update the RPC data.
             const state = context.api.store.getState();
