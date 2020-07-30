@@ -73,13 +73,8 @@ function main(context) {
                 setRPCGame(state, activeGameId).catch(() => undefined);
             }
             else {
-                try {
-                    RPC.clearActivity();
-                }
-                catch(err) {
-                    log('info', 'Error clearing Discord RPC status.', err);
-                }
-                
+                RPC.clearActivity()
+                .catch(err => log('info', 'Error clearing Discord RPC status.', err));
             };
         });
     });
