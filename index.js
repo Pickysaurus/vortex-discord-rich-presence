@@ -83,7 +83,7 @@ function main(context) {
 function setRPCGame(state, newMode, currentProfile) {
     return new Promise((resolve, reject) => {
         if (!newMode || !state) {
-            RPC.clearActivity().then(()=> resolve())
+            return RPC.clearActivity().then(()=> resolve())
             .catch(err => reject(err));
         }
 
@@ -99,11 +99,11 @@ function setRPCGame(state, newMode, currentProfile) {
         activity.state = modCount === 1 ? `${modCount} mod installed` : `${modCount} mods installed`;
         // activity.startTimestamp = profile.lastActivated;
 
-        RPC.setActivity(activity).then(() => resolve())
+        return RPC.setActivity(activity).then(() => resolve())
         .catch(err => { 
             log('info', 'Setting RPC activity failed.', err);
             rpcEnabled = false;
-            reject(err);
+            return reject(err);
         });
     });
 }
