@@ -1,7 +1,7 @@
 const { log, selectors, util } = require('vortex-api');
 const DiscordRPC = require('discord-rpc');
 const clientId = '594190466782724099';
-const RPC = new DiscordRPC.Client({transport: 'ipc' });
+let RPC = new DiscordRPC.Client({transport: 'ipc' });
 const gameArt = require('./gameart.json');
 let rpcEnabled = true;
 let connected = false;
@@ -9,7 +9,6 @@ let connected = false;
 function main(context) {
 
     context.registerAction('global-icons', 100, 'show', {}, 'Discord Rich Presence: ON', () => {
-        rpcEnabled = !rpcEnabled;
         RPC.clearActivity().catch(err => { return alertError(err, context.api) });
         context.api.sendNotification(
             {
@@ -18,14 +17,16 @@ function main(context) {
                 displayMS: 2000 
             }
         );
+        rpcEnabled = !rpcEnabled;
     },
     () => {return (rpcEnabled === true)});
 
-    context.registerAction('global-icons', 100, 'hide', {}, 'Discord Rich Presence: OFF', () => {
-        rpcEnabled = !rpcEnabled;
+    context.registerAction('global-icons', 100, 'hide', {}, 'Discord Rich Presence: OFF', async () => {
+        await loginRPC();
+        if (!connected) return alertError('Could not connect to Discord RPC', context.api);
         const state = context.api.store.getState();
         const activeGameId = selectors.activeGameId(state);
-        setRPCGame(state, activeGameId).then(() => {
+        return setRPCGame(state, activeGameId).then(() => {
             context.api.sendNotification(
                 {
                     type: 'info', 
@@ -33,6 +34,7 @@ function main(context) {
                     displayMS: 2000 
                 }
             );
+            rpcEnabled = !rpcEnabled;
         })
         .catch(err => { return alertError(err, context.api) });
     },
@@ -129,17 +131,29 @@ function alertError(error, api) {
             displayMS: 2000 
         }
     );
-
-    if (!connected) {
-        // If the RPC didn't connect, try again. 
-        return RPC.login({ clientId }).then(() => connected = true).catch((err) => log('warn', 'Discord RPC failed to connect', err));
-    }
-
-    connected = false;
 }
 
 RPC.on('ready', () =>  log('info', `Discord RPC - ${RPC.user.username}#${RPC.user.discriminator} logged into client ${RPC.clientId} `));
 
-RPC.login({ clientId }).then(() => connected = true).catch((err) => log('warn', 'Discord RPC failed to connect', err));
+async function loginRPC() {
+    if (connected) return true;
+
+    // Try making a new RPC instance first.
+    RPC = new DiscordRPC.Client({transport: 'ipc' });
+
+    return RPC.login({ clientId })
+        .then(() => {
+            connected = true;
+            return connected;
+        })
+        .catch((err) => {
+            log('warn', 'Discord RPC failed to connect', err);
+            connected = false;
+            rpcEnabled = false;
+            return connected;
+        });
+}
+
+loginRPC();
 
 module.exports = { default: main };
