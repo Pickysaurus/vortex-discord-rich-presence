@@ -134,6 +134,13 @@ function alertError(error, api) {
 }
 
 RPC.on('ready', () =>  log('info', `Discord RPC - ${RPC.user.username}#${RPC.user.discriminator} logged into client ${RPC.clientId} `));
+// Catch errors
+RPC.on('error', (err) => log('error', 'Discord RPC error', err));
+RPC.on('connected', () => log('debug', 'Discord RPC connected'));
+RPC.on('discconnected', () => {
+    log('debug', 'Discord RPC disconnected');
+    connected = false;
+});
 
 async function loginRPC() {
     if (connected) return true;
