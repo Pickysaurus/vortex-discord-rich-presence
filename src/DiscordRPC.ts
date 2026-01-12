@@ -53,7 +53,7 @@ export default class DiscordRPC {
         const newSettings = this._API.getState().settings['Discord'] || {};
         const oldSettings = this.Settings || { enabled: true };
         log('debug', 'Updated RPC Settings', { newSettings, oldSettings });
-        console.log('Updated RPC settings', newSettings);
+        // console.log('Updated RPC settings', newSettings);
         this.Settings = newSettings;
         if (newSettings.enabled !== oldSettings.enabled) {
             if (newSettings.enabled) {
@@ -194,7 +194,7 @@ export default class DiscordRPC {
         // Get info from the event.
         const { collectionId, totalRequired, totalOptional, installedCount, gameId } = cur;
         const collectionEntity = this._API.getState().persistent.mods[gameId][collectionId];
-        console.log('Collection session', {cur, collectionEntity});
+        // console.log('Collection session', {cur, collectionEntity});
         const game = util.getGame(gameId);
 
         const presence: RPC.Presence = {
