@@ -27,8 +27,8 @@ export default class DiscordRPC {
 
     constructor(api: types.IExtensionApi) {
         this._API = api;
-        this.createClient();
         this.Settings = this.GetSettings(api);
+        if (this.Settings.enabled) this.createClient();
         // Register to update settings
         this._API.onStateChange(['settings', 'Discord'], () => this.scheduleSettingsSync());
 

@@ -7,8 +7,8 @@ export interface IDiscordRPCSettingsState {
 }
 
 export interface IDiscordRPCSessionState {
-    user?: any;
-    presence?: RPC.Presence & { bot: boolean, flags: number, global_name: string, premium_type: number };
+    user?: RPC.User & { bot: boolean, flags: number, global_name: string, premium_type: number };
+    presence?: RPC.Presence;
 }
 
 const discordRpcReducers: types.IReducerSpec<IDiscordRPCSettingsState> = {
