@@ -4,16 +4,13 @@ import gameArt from './gameart.json';
 import { IDiscordRPCSettingsState } from './reducers';
 import { setCurrentActivity, setCurrentUser } from './actions';
 import { IRunningTools } from './types';
-import { ICollectionInstallSession, IProfile, IRunningTool } from 'vortex-api/lib/types/api';
+import { ICollectionInstallSession } from 'vortex-api/lib/types/api';
 
 const AppID = '594190466782724099';
 
 export default class DiscordRPC {
-    public enabled = false;
-    public currentActivity: RPC.Presence | null = null;
     private _API: types.IExtensionApi;
     private _Client: RPC.Client;
-    private clientId: string | null = null;
     private connected = false;
     private iRetryAttempts: number | undefined;
     private iRetryDelay: number = 10000;
@@ -78,7 +75,7 @@ export default class DiscordRPC {
 
         this._Client.on('ready', () => {
             const user = this._Client!.user;
-            log('info', `Discord RPC - ${user.username} (${user.id}) logged into client ${this.clientId}`);
+            log('info', `Discord RPC - ${user.username} (${user.id}) logged into client ${this.AppId}`);
         });
         this._Client.on('error', (err) => log('error', 'Discord RPC error', err));
         this._Client.on('connected', () => log('debug', 'Discord RPC connected'));
@@ -106,7 +103,6 @@ export default class DiscordRPC {
             console.warn('DPC RPC failed', err);
             log('warn', 'Discord RPC failed to connect', err);
             this.connected = false;
-            this.enabled = false;
 
             if (retryLimit === -1 || retryLimit > 0) {
                 // schedule retry
@@ -142,7 +138,7 @@ export default class DiscordRPC {
     }
 
     async clearActivity() {
-        this.currentActivity = null;
+        if (!this.Settings.enabled || !this.connected) return;
         this.connected = false;
         this._API.store.dispatch(setCurrentActivity(undefined));
         this._API.store.dispatch(setCurrentUser(undefined));
@@ -150,18 +146,21 @@ export default class DiscordRPC {
     }
 
     private async onGameModeActivated(newMode: string) {
+        if (!this.Settings.enabled || !this.connected) return;
         log('debug', 'Discord RPC updating for GameModeActivated');
         return this.setRPCGame(newMode)
     }
 
     private onDidDeploy() {
+        if (!this.Settings.enabled || !this.connected) return;
         log('debug', 'Discord RPC updating for DidDeploy activated');
         const state = this._API.getState();
         const activeGameId = selectors.activeGameId(state);
         this.setRPCGame(activeGameId);
     }
 
-    private onActiveProfileChanged(_, cur: IProfile) {
+    private onActiveProfileChanged(_: string | undefined, cur: string | undefined) {
+        if (!this.Settings.enabled || !this.connected) return;
         log('debug', 'Discord RPC updating for ActiveProfilChanged');
         // No new profile
         if (!cur) return this.clearActivity();
@@ -189,6 +188,7 @@ export default class DiscordRPC {
     }
     
     private onCollectionInstallProgress(prev: ICollectionInstallSession, cur: ICollectionInstallSession) {
+        if (!this.Settings.enabled || !this.connected) return;
         // Back out if there's no current state, the install count hasn't changed, or there's a timer running.
         if (!cur || cur.installedCount === prev.installedCount || this.ActivityUpdateTimer) return;
         // Get info from the event.
@@ -218,7 +218,7 @@ export default class DiscordRPC {
     }
 
     private async setRPCGame(gameId?: string): Promise<void> {
-        if (!this.Settings.enabled) return;
+        if (!this.Settings.enabled || !this.connected) return;
         if (!gameId) {
             this.setDefaultRPC();
             return;
@@ -264,7 +264,6 @@ export default class DiscordRPC {
                 if (!this.connected) return;
             }
             if (presence) {
-                this.currentActivity = presence;
                 this._Client.setActivity(presence);
                 this._API.store.dispatch(setCurrentActivity(presence));
             }
@@ -280,6 +279,7 @@ export default class DiscordRPC {
     }
 
     async setActivity(presence?: RPC.Presence) {
+        if (!this.Settings.enabled || !this.connected) return;
         const current = this._API.getState().session['Discord'].presence;
         const sameAsCurrent = JSON.stringify(current) === JSON.stringify(presence);
         if (sameAsCurrent) return;

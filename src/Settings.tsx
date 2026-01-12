@@ -8,7 +8,7 @@ import { IDiscordRPCSessionState, IDiscordRPCSettingsState } from './reducers';
 function DiscordSettings() {
     const { enabled }: IDiscordRPCSettingsState = useSelector((state: types.IState) => state.settings['Discord']);
     const { user }: IDiscordRPCSessionState = useSelector((state: types.IState) => state.session['Discord']);
-    const state = useSelector((state: types.IState) => state);
+    // const state = useSelector((state: types.IState) => state);
     const store = useStore();
 
     const setRPCEnabled = React.useCallback((enabled: boolean) => {
@@ -22,6 +22,8 @@ function DiscordSettings() {
                     <ControlLabel>Discord Integration</ControlLabel>
                     <Toggle
                         checked={enabled}
+                        // Ignoring due to some weird type issue. Probably a fault with the Vortex component.
+                        // @ts-ignore
                         onToggle={setRPCEnabled}
                     >
                         Enable Discord Rich Presence
@@ -46,7 +48,7 @@ function DiscordSettings() {
                     )}
                     {!user && <p>Not connected to Discord</p>}
                 </Panel>
-                <a onClick={() => console.log(state)}>Print State</a>
+                {/* <a onClick={() => console.log(state)}>Print State</a> */}
             </FormGroup>
         </form>
     );
