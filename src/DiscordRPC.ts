@@ -38,6 +38,9 @@ export default class DiscordRPC {
 
         // Register for custom events
         this._API.events.on('update-discord-activity', (presence: RPC.Presence) => this.setActivity(presence));
+
+        const activeGameId: string | undefined = selectors.activeGameId(this._API.getState());
+        this.setRPCGame(activeGameId);
     }
 
     getUser = () => this._Client.user;
@@ -163,7 +166,7 @@ export default class DiscordRPC {
         if (!this.Settings.enabled || !this.connected) return;
         log('debug', 'Discord RPC updating for ActiveProfilChanged');
         // No new profile
-        if (!cur) return this.clearActivity();
+        if (!cur) return this.setDefaultActivity();
         else {
             const state = this._API.getState();
             const activeGameId = selectors.activeGameId(state);
@@ -220,7 +223,7 @@ export default class DiscordRPC {
     private async setRPCGame(gameId?: string): Promise<void> {
         if (!this.Settings.enabled || !this.connected) return;
         if (!gameId) {
-            this.setDefaultRPC();
+            this.setDefaultActivity();
             return;
         }
 
@@ -242,10 +245,9 @@ export default class DiscordRPC {
         return this.setActivity(presence);
     }
 
-    private async setDefaultRPC() {
+    private async setDefaultActivity() {
         const presence: RPC.Presence = {
-            details: 'Vortex Mod Manager',
-            state: 'Ready to start modding!',
+            details: 'Ready to start modding!',
             largeImageKey: 'vortexlogo512',
             largeImageText: 'Vortex',
             smallImageKey: 'nexuslogo',
