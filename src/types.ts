@@ -1,7 +1,7 @@
 interface IRunningTools {
     [key: string]: {
         exclusive: boolean;
-        exePath: string;
+        exePath?: string;
         pid: number | undefined;
         started: number;
     }

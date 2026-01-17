@@ -4,6 +4,9 @@ import * as RPC from 'discord-rpc';
 
 export interface IDiscordRPCSettingsState {
     enabled: boolean;
+    showMods: boolean;
+    showCollections: boolean;
+    hideOnGameLaunch: boolean;
 }
 
 export interface IDiscordRPCSessionState {
@@ -13,13 +16,16 @@ export interface IDiscordRPCSessionState {
 
 const discordRpcReducers: types.IReducerSpec<IDiscordRPCSettingsState> = {
     reducers: {
-        [setRPCSetting as any]: (state, payload) => {
+        [setRPCSetting as any]: (state, payload: { key: keyof IDiscordRPCSettingsState, value: boolean }) => {
             return util.setSafe(state, [payload.key], payload.value)
         },
         
     },
     defaults: {
         enabled: true,
+        showMods: true,
+        showCollections: true,
+        hideOnGameLaunch: true,
     }
 }
 
