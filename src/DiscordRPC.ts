@@ -274,7 +274,9 @@ export default class DiscordRPC {
         }
         const game = util.getGame(gameId);
         const profile = selectors.activeProfile(state);
-        const modCount = Object.values(profile.modState).filter(m => m.enabled).length;
+        if (!profile) log('warn', `No active profile for ${game.name}, could not generate Discord activity`);
+        // Apparently the modState is an optional prop (but the docs say otherwise!), so can be undefined.
+        const modCount = typeof profile.modState === 'object' ? Object.values(profile.modState).filter(m => m.enabled).length : 0;
         log('info', `Updating Discord RPC for ${game.id}: ${profile.id}`);
 
         const presence: RPC.Presence = {
